@@ -364,8 +364,8 @@ class WeMessage:
         client = WeChatClient(self.client_info['APP_ID'], self.client_info['APP_SECRET'])
         wm = WeChatMessage(client)
 
-        # server_time = str((int(self.now_time[:2]) + 8) % 24) + self.now_time[2:]  # Github 时间比国内早8小时
-        server_time = self.now_time
+        server_time = str((int(self.now_time[:2]) + 8) % 24) + self.now_time[2:]  # Github 时间比国内早8小时
+        # server_time = self.now_time
 
         # 判断时间
         if "08:00:00" < server_time < "12:00:00":
