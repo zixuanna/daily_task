@@ -1,6 +1,6 @@
 import datetime
 from datetime import date
-import math
+
 from wechatpy import WeChatClient
 from wechatpy.client.api import WeChatMessage, WeChatTemplate
 import requests
@@ -217,6 +217,15 @@ def morning_msg(key):
     print(msg)
     return msg
 
+def get_weather(key, city):
+    url = f"https://apis.tianapi.com/tianqi/index?key={key}&city={city}&type=1"
+    ret = requests.get(url)
+    ret = ret.content.decode('utf8').replace("'", '"')
+    data_json = json.loads(ret)
+    result = data_json['result']
+    msg = f"城市: {city}"+"\n"+ f"今天是{result['week']},天气：{result['weather']},气温：({result['lowest']},{result['highest']}）,空气质量{result['quality']},tips: {result['tips']}"
+    return msg
+
 
 def get_words():
     words = requests.get("https://api.shadiao.pro/chp")
@@ -237,6 +246,8 @@ class WeMessage:
         self.client_info = client_info
         self._init_user_info()
         self.start()
+    # def get_weather(self,city):
+    #     url = ""
 
     def _init_user_info(self):
 
@@ -258,33 +269,36 @@ class WeMessage:
             next = next.replace(year=next.year + 1)
         return (next - self.today).days
 
-    def get_weather(self, city):
-        url = "http://autodev.openspeech.cn/csp/api/v2.1/weather?openId=aiuicus&clientType=android&sign=android&city=" + city
+    # def get_weather(self, city):
+    #     url = "http://autodev.openspeech.cn/csp/api/v2.1/weather?openId=aiuicus&clientType=android&sign=android&city=" + city
+    #
+    #     res = requests.get(url).json()
+    #     print(res)
+    #     weather = res['data']['list'][0]
+    #     weather_message = f"{weather['city']}, 天气：{weather['weather']}，" + f"温度：{math.floor(weather['temp'])}，" + f"湿度：{weather['humidity']}，" + f"风力等级：{weather['wind']}"
+    #     return weather_message
 
-        res = requests.get(url).json()
-        weather = res['data']['list'][0]
-        weather_message = f"{weather['city']}, 天气：{weather['weather']}，" + f"温度：{math.floor(weather['temp'])}，" + f"湿度：{weather['humidity']}，" + f"风力等级：{weather['wind']}"
-        return weather_message
+
 
     def send_daily_msg(self, wm, server_time):
-        weather_message0 = self.get_weather(self.user0['CITY'])
-        weather_message1 = self.get_weather(self.user1['CITY'])
-        data0 = {
+        weather_message0 = get_weather(tianapi_api,self.user0['CITY'])
+        weather_message1 = get_weather(tianapi_api, self.user1['CITY'])
+        data1 = {
             "date_date": {"value": str(server_time)+'，今天也要加油哦!', "color": get_random_color()},
             "zaoan": {"value": morning_msg(self.tianapi_api), "color": get_random_color()},
-            "weather_message0": {"value": weather_message0, "color": get_random_color()},
-            "weather_message1": {"value": weather_message1},
             "love_days": {"value": self.get_count(), "color": "#%06x" % 0xFA8072},
             "birthday_left": {"value": self.get_birthday(self.user0['BIRTHDAY']), "color": "#%06x" % 0xFA8072},
-
-        }
-        data1 = {
             "words": {"value": get_words(), "color": get_random_color()},
             "song_words": {"value": song_word(self.tianapi_api), "color": get_random_color()},
         }
+
+        data2 = {
+            "weather_message0": {"value": weather_message0, "color": get_random_color()},
+            "weather_message1": {"value": weather_message1, "color": get_random_color()},
+        }
         for i in range(len(self.client_info['USER_ID'])):
-            wm.send_template(self.client_info['USER_ID'][i], self.client_info['TEMPLATE_ID']['daily_id1'], data0)
-            wm.send_template(self.client_info['USER_ID'][i], self.client_info['TEMPLATE_ID']['daily_id2'], data1)
+            wm.send_template(self.client_info['USER_ID'][i], self.client_info['TEMPLATE_ID']['daily_id1'], data1)
+            wm.send_template(self.client_info['USER_ID'][i], self.client_info['TEMPLATE_ID']['weather_id'], data2)
 
 
 
@@ -353,21 +367,21 @@ class WeMessage:
         # server_time = str((int(self.now_time[:2]) + 8) % 24) + self.now_time[2:]  # Github 时间比国内早8小时
         server_time = self.now_time
 
-        # # 判断时间
-        # if "08:00:00" < server_time < "12:00:00":
-        #     self.send_daily_msg(wm, server_time)
-        # if "12:00:00" < server_time < "14:00:00":
-        #     self.send_star_msg(wm)
-        # if "18:00:00" < server_time < "21:00:00":
-        #     self.send_menses_msg(wm)
-        # if "21:00:00" < server_time < "24:00:00":
-        #     self.send_night_msg(wm, server_time)
+        # 判断时间
+        if "08:00:00" < server_time < "12:00:00":
+            self.send_daily_msg(wm, server_time)
+        if "12:00:00" < server_time < "14:00:00":
+            self.send_star_msg(wm)
+        if "18:00:00" < server_time < "21:00:00":
+            self.send_menses_msg(wm)
+        if "21:00:00" < server_time < "24:00:00":
+            self.send_night_msg(wm, server_time)
 
-        self.send_daily_msg(wm, server_time)
-        self.send_star_msg(wm)
-        self.send_menses_msg(wm)
-        self.send_night_msg(wm, server_time)
-        print(server_time)
+        # self.send_daily_msg(wm, server_time)
+        # self.send_star_msg(wm)
+        # self.send_menses_msg(wm)
+        # self.send_night_msg(wm, server_time)
+        # print(server_time)
         print("process have down")
 
 
@@ -380,7 +394,8 @@ if __name__ == "__main__":
         'BIRTHDAY': '02-15',
         'STAR': '水瓶座',
         'MENSES_PERIOD': [
-            ("2023-01-01","2023-01-01"),
+            ("2023-01-01","2023-02-01"),
+            ("2023-02-07", "2023-03-01")
 
         ]
     }  # 女生的信息
@@ -393,19 +408,21 @@ if __name__ == "__main__":
     }  # 男生的信息
 
     tianapi_api = '54601312395bae03a51ec6d7fe2d8ee6'  # 第三方接口的key
+    get_weather(tianapi_api,"永州")
+
     """从微信公众平台获取的相关密钥"""
     client_info = {
         "APP_ID": 'wx1dd1b3dfe6839e77',
-        "APP_SECRET": 'c9b1871dedfe1f1cb55dc91cd1c15f93',
+        "APP_SECRET": '7bfd2867810b4fada78677c6e2c9d516',
         # "USER_ID": ['omr1N5l9KdGm7LtNGPfrJET3qrGs', 'omr1N5sLmhG-9KNuZ0At5SgWK9aw'],
-        "USER_ID": ['oOt8U5yYhueXktUPVMbXzKScIQdo'],
+        "USER_ID": ['oOt8U5yYhueXktUPVMbXzKScIQdo','oOt8U52Cq4kyv48q0SL3oqx5-FPs'],
         "TEMPLATE_ID": {
-            'daily_id1': 'iftxH6iO0vhwX4XpLmN9l29skOwsZ2lwIYb7UnntGb4',
-            'daily_id2': 'PHHUuMFmS9hv-55WmU9OAK3rtHmjBPX9tCuxr8NQNrw',
-            'star_id':   'CHahgqor9bNdLLPIetLsMoMPUJPo2tfB5H-2olO-rP',
+            'daily_id1': 'Ll6_xgxAXjVjeWmyBdAnz2-hZ3beTy08uEntVq93Zm0',
+            'star_id':   'CHahgqor9bNdLLPIetLsMoMPUJPo2tfB5H-2olO-rPs',
             'menses_id': 'D7zi38lxdP4PQWYoVKmOssl8BHoq5tipQsjC_1WRwWk',
             'night_id':  '3rU10GY9B3Gm6TTnIvC9oXEObTTyykOaSgSIKIdsAog',
             'story_id':  'D7VFxRZH5lkUFhgJfC_0V129cPaUiVB5S7x3OQYRFlQ',
+            'weather_id': 'i1ZpOcJ3pqmRTVcV1OJHgq2hipZNwxb1fO6I_X9uNe8'
         }
     }
     WeMessage(user0, user1, client_info, tianapi_api)
@@ -415,14 +432,16 @@ if __name__ == "__main__":
 早安寄语：{{zaoan.DATA}}
 今天是我们的第：{{love_days.DATA}}天 
 距离她的生日：{{birthday_left.DATA}}天 
+今日想对她说的话：{{words.DATA}}
+{{song_words.DATA}}
+"""
+
+"""weather_remind
 她所在的城市：{{weather_message0.DATA}}
 他所在的城市：{{weather_message1.DATA}}
 """
 
-"""  daily_id2
-今日想对她说的话：{{words.DATA}}
-{{song_words.DATA}}
-"""
+
 
 """  night_id
 晚上好啊，阿兔
